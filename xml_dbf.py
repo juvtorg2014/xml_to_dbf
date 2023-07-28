@@ -1,11 +1,6 @@
-import pandas as pd
-import itertools
-from bs4 import BeautifulSoup as bs
 import os
-import dbf
-import datetime
 import subprocess
-import sys
+import importlib.util
 
 
 def run_cmd(cmd):
@@ -14,25 +9,33 @@ def run_cmd(cmd):
     print(ps.stdout)
 
 
-def check_modules():
-    old_modules = ['pandas', 'beautifulsoup4', 'dbf', 'datetime']
-    reqs = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
-    installed_packages = [r.decode().split('==')[0] for r in reqs.split()]
-    for item in old_modules:
-        if item not in installed_packages:
-            try:
-                run_cmd(f'pip install {item}')
-            except Exception as e:
-                print(f"Не удалось установить пакет {item}", e)
+def check_modules(module):
+    """ Проверка модуля на наличие в системе"""
+    if importlib.util.find_spec(module) is None:
+        try:
+            run_cmd(f'pip install {module}')
+        except Exception as e:
+            print(f"Не удалось установить пакет {module}", e)
+
+
+def import_modules():
+    check_modules('pandas')
+    check_modules('bs4')
+    check_modules('lxml')
+    check_modules('dbf')
+    check_modules('datetime')
+    check_modules('itertools')
 
 
 def xml_to_csv(name_file):
-    check_modules()
+    from bs4 import BeautifulSoup as bs
+    import itertools
+    import pandas as pd
     with open(name_file, 'r', encoding='UTF-8') as f:
         content = f.read()
 
         # Извлечение содержания файла по спискам
-        soup = bs(content, "xml")
+        soup = bs(content, 'xml')
         date_list = soup.find("ДатаПеречня").text.replace("-", "")
         csv_name = date_list + '.csv'
         full_name_csv = os.path.abspath(csv_name)
@@ -65,6 +68,8 @@ def xml_to_csv(name_file):
 
 
 def csv_to_dbf(file_name):
+    import dbf
+    import datetime
     dbf_file = file_name.replace('.csv', '.dbf')
     if os.path.exists(dbf_file):
         os.remove(dbf_file)
@@ -99,7 +104,7 @@ def csv_to_dbf(file_name):
                     print('Не загружается ', line[4])
                     print(e)
                     continue
-                print(line[4])
+                print(line[4], date_birth.date())
             else:
                 continue
     table.close()
@@ -111,4 +116,6 @@ if __name__ == '__main__':
     if not os.path.exists(os.path.abspath(name + '.xml')):
         print(f"Неправильное имя файла {name} !!!")
         exit()
+    run_cmd('pip install --upgrade pip')
+    import_modules()
     csv_to_dbf(xml_to_csv(name + '.xml'))
