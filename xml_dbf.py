@@ -1,6 +1,10 @@
 import os
+import sys
+import re
 import subprocess
 import importlib.util
+from bs4 import BeautifulSoup
+import lxml
 
 
 def run_cmd(cmd):
@@ -28,14 +32,13 @@ def import_modules():
 
 
 def xml_to_csv(name_file):
-    from bs4 import BeautifulSoup as bs
     import itertools
     import pandas as pd
     with open(name_file, 'r', encoding='UTF-8') as f:
         content = f.read()
 
         # Извлечение содержания файла по спискам
-        soup = bs(content, 'xml')
+        soup = BeautifulSoup(content, 'xml')
         date_list = soup.find("ДатаПеречня").text.replace("-", "")
         csv_name = date_list + '.csv'
         full_name_csv = os.path.abspath(csv_name)
@@ -91,8 +94,11 @@ def csv_to_dbf(file_name):
                 new_line.append(line[4].rstrip())  # NAMEU
 
                 if len(line[5]):
-                    dd, mm, yy = line[5].split('.')
-                    date_birth = datetime.datetime(int(yy), int(mm), int(dd))
+                    patn = re.compile(r'\d{2}\W\d{2}\W\d{4}')
+                    for i, item in enumerate(line):
+                        if patn.findall(item):
+                            dd, mm, yy = line[i].split('.')
+                            date_birth = datetime.datetime(int(yy), int(mm), int(dd))
                 else:
                     date_birth = datetime.datetime(2000, 1, 1)
                 new_line.append(date_birth)
